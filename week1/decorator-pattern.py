@@ -1,0 +1,130 @@
+### 결제 로직을 데코레이터 패턴으로 작성해보기
+
+class BasePromotionPercentage(Enum):
+    YEAR = 0.9
+    HALF_YEAR = 0.8
+    MONTH = 0.7
+
+class Product(metaclass=ABCMeta):
+    description = "제목 없음"
+    base_promotion_percentage: BasePromotionPercentage
+
+    def get_description(self):
+        return self.description
+
+    @abstractmethod
+    def price(self):
+        raise NotImplementedError()
+
+
+class Coupon(PromotionDecorator):
+    discount_price: int
+
+
+class PromotionDecorator(Product):
+    product: Product
+
+    @abstractmethod
+    def get_description(self):
+        return self.description
+
+    @abstractmethod
+    def price(self):
+        raise NotImplementedError()
+
+
+class Premium300(Product):
+    base_promotion_percentage = BasePromotionPercentage.YEAR
+
+    def __init__(self):
+        self.description = "프리미엄 300일권"
+
+    def price(self):
+        return 1000000
+
+class Premium150(Product):
+    base_promotion_percentage = BasePromotionPercentage.HALF_YEA
+
+    def __init__(self):
+        self.description = "프리미엄 150일권"
+
+    def price(self):
+        return 500000
+
+class Premium30(Product):
+    base_promotion_percentage = BasePromotionPercentage.MONTH
+
+    def __init__(self):
+        self.description = "프리미엄 30일권"
+
+    def price(self):
+        return 100000
+
+class CommonPromotion(PromotionDecorator):
+    def __init__(self, product: Product):
+        self.product = product
+
+    def get_description(self):
+        return self.product.get_description() + ", 기본할인"
+
+    def price(self):
+        return int(self.product.price() * self.base_promotion_percentage)
+
+class TenPercentCoupon(PromotionDecorator):
+    def __init__(self, product: Product):
+        self.product = product
+
+    def get_description(self):
+        return self.product.get_description() + ", 10%쿠폰적용"
+
+    def price(self):
+        return int(self.product.price() * 0.9)
+
+class Coupon10000(Coupon):
+    discount_value = 10000
+
+    def __init__(self, product: Product):
+        self.product = product
+
+    def get_description(self):
+        return self.product.get_description() + f", {self.discount_value}원 할인"
+
+    def price(self):
+        return self.product.price() - 10000
+
+
+class Coupon3000(Coupon, PromotionDecorator):
+    discount_value = 3000
+
+    def __init__(self, product: Product):
+        self.product = product
+
+    def get_description(self):
+        return self.product.get_description() + f", {self.discount_value}원할인"
+
+    def price(self):
+        return self.product.price() - 3000
+
+product1: Product = Premium300()
+
+promotions: PromotionDecorator[] = []
+
+# apply common promotion
+promotions.append(CommonPromotion(product1, percentage=BasePromotionPercentage.YEAR))
+
+# point apply
+# client = 서버에서 전달 받은 값
+# server = db에서 들고 온 값
+promotions.append(Coupon(product1, coupon=coupon))
+
+# percentage coupon
+promotions.append(PercentCoupon(product1, percentage=possible_percentage))
+
+# debugging
+promotions.append(Debugging(product1))
+print(product1.price())
+print(product1.description())
+
+# 중간에 쿠폰이나 프로모션이 수정되어야 하는 경우는 어떻게할까? -> 아이디어 없음
+# 미스틱 : 데코레이터패턴을 안쓴다.
+# 애런 : 프로모션 리스트에서 하나씩 돈다 O(n)
